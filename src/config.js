@@ -8,7 +8,7 @@ const required = ['DISCORD_TOKEN', 'SOURCE_GUILD_ID'];
 
 for (const key of required) {
   if (!process.env[key] || process.env[key].startsWith('your_')) {
-    console.error(`\n❌ missing or unconfigured variable: ${key}`);
+    console.error(`\n[ERROR] missing or unconfigured variable: ${key}`);
     console.error(`   edit the .env file and set the correct value.\n`);
     process.exit(1);
   }
@@ -42,7 +42,7 @@ if (routesRaw.length > 0) {
 
 // must have at least default webhooks or channel routes
 if (defaultWebhookUrls.length === 0 && channelRoutes.size === 0) {
-  console.error('\n❌ no webhooks configured. set WEBHOOK_URLS and/or CHANNEL_ROUTES in .env\n');
+  console.error('\n[ERROR] no webhooks configured. set WEBHOOK_URLS and/or CHANNEL_ROUTES in .env\n');
   process.exit(1);
 }
 

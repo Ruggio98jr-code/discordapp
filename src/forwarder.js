@@ -1,19 +1,15 @@
 import config from './config.js';
 import logger from './logger.js';
 
-/**
- * handles instant forwarding of discord messages via multiple webhooks.
- *
- * supports per-channel routing: specific source channels can be routed
- * to specific destination webhooks. unrouted channels use the default pool.
- *
- * uses round-robin across webhooks to handle high throughput.
+/*
+ * Handles instant forwarding of Discord messages via multiple webhooks.
+ * Supports per-channel routing and round-robin across webhooks.
  */
 
 const MAX_CONTENT_LENGTH = 2000;
 const MAX_RETRIES = 3;
 
-// ─── webhook pools ────────────────────────────────────────
+// --- webhook pools ---
 // each pool has its own round-robin index and rate limit tracking
 
 const pools = new Map();
@@ -31,9 +27,7 @@ function getPool(webhookUrls) {
   return pools.get(key);
 }
 
-/**
- * picks the next available webhook from a pool using round-robin.
- */
+// picks the next available webhook using round-robin
 function pickWebhook(pool) {
   const now = Date.now();
   const total = pool.urls.length;
@@ -57,10 +51,7 @@ function pickWebhook(pool) {
   return { url: pool.urls[earliest], idx: earliest, waitMs: pool.status[earliest].availableAt - now };
 }
 
-/**
- * resolves which webhook pool to use for a given channel id.
- * returns the channel-specific pool if routed, otherwise the default pool.
- */
+// resolves which webhook pool to use for a channel id
 function resolvePool(channelId) {
   // check for channel-specific route
   if (config.channelRoutes.has(channelId)) {
@@ -73,10 +64,7 @@ function resolvePool(channelId) {
   return null;
 }
 
-/**
- * forwards a message instantly. fire-and-forget, no queue.
- * @param {import('discord.js-selfbot-v13').Message} message
- */
+// forwards a message instantly (fire-and-forget)
 export async function forwardMessage(message) {
   const pool = resolvePool(message.channel.id);
 
@@ -104,17 +92,13 @@ export async function forwardMessage(message) {
   }
 }
 
-/**
- * forwards an edited message with an [UPDATED] tag.
- * critical for surebet signals where odds can change.
- * @param {import('discord.js-selfbot-v13').Message} message - the new version of the message
- */
+// forwards an edited message with an updated tag
 export async function forwardEdit(message) {
   const pool = resolvePool(message.channel.id);
   if (!pool) return;
 
   try {
-    const payload = buildPayload(message, '\u26a0\ufe0f UPDATED');
+    const payload = buildPayload(message, '[UPDATED]');
     const payloads = splitPayloadIfNeeded(payload);
 
     for (const p of payloads) {
@@ -128,11 +112,7 @@ export async function forwardEdit(message) {
   }
 }
 
-/**
- * forwards a deletion notice.
- * critical for surebet signals: deleted = signal no longer valid.
- * @param {import('discord.js-selfbot-v13').Message} message - the deleted message (may be partial)
- */
+// forwards a deletion notice
 export async function forwardDelete(message) {
   const pool = resolvePool(message.channel.id);
   if (!pool) return;
@@ -140,8 +120,8 @@ export async function forwardDelete(message) {
   try {
     const channelName = message.channel.name || 'unknown';
     const content = message.content
-      ? `\u274c **SIGNAL DELETED** in **#${channelName}**\n> ${message.content.slice(0, 500)}`
-      : `\u274c **SIGNAL DELETED** in **#${channelName}** (content unavailable)`;
+      ? `[DELETED] **SIGNAL DELETED** in **#${channelName}**\n> ${message.content.slice(0, 500)}`
+      : `[DELETED] **SIGNAL DELETED** in **#${channelName}** (content unavailable)`;
 
     const payload = {
       username: message.author?.displayName || message.author?.username || 'deleted',
@@ -160,9 +140,7 @@ export async function forwardDelete(message) {
   }
 }
 
-/**
- * sends a payload using a webhook pool with automatic failover
- */
+// sends a payload using a webhook pool with failover
 async function sendToPool(pool, payload, attempt = 1) {
   const picked = pickWebhook(pool);
 
@@ -184,9 +162,7 @@ async function sendToPool(pool, payload, attempt = 1) {
   }
 }
 
-/**
- * sends a payload to a specific webhook
- */
+// sends a payload to a specific webhook
 async function sendWebhook(pool, url, idx, payload) {
   let response;
   try {
@@ -235,9 +211,7 @@ async function sendWebhook(pool, url, idx, payload) {
   }
 }
 
-/**
- * builds the webhook payload from a discord message
- */
+// builds the webhook payload from a discord message
 function buildPayload(message, tag = '') {
   let username = message.author?.displayName || message.author?.username || 'unknown';
   // discord webhooks strictly limit username to 80 chars max
@@ -291,9 +265,7 @@ function buildPayload(message, tag = '') {
   return payload;
 }
 
-/**
- * splits the payload into multiple payloads if content exceeds 2000 characters
- */
+// splits payload if content exceeds 2000 characters
 function splitPayloadIfNeeded(payload) {
   if (!payload.content || payload.content.length <= MAX_CONTENT_LENGTH) {
     return [payload];
@@ -310,7 +282,7 @@ function splitPayloadIfNeeded(payload) {
   }
 
   // same for [UPDATED] tag header
-  if (lines.length > 0 && lines[0].startsWith('\u26a0\ufe0f UPDATED **#')) {
+  if (lines.length > 0 && lines[0].startsWith('[UPDATED] **#')) {
     header = lines[0] + '\n';
     bodyContent = payload.content.slice(header.length);
   }

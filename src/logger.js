@@ -1,6 +1,4 @@
-/**
- * logger with timestamps and colored output for the console
- */
+// simple logger with timestamps and colors
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -42,9 +40,7 @@ const logger = {
     console.error(`${formatPrefix(' ERR', COLORS.red)} ${msg}`);
   },
 
-  /**
-   * log specifically for forwarded messages
-   */
+  // special format for forwarded messages
   forwarded({ author, channel, preview }) {
     const text = preview.length > 60 ? preview.slice(0, 60) + '…' : preview;
     console.log(

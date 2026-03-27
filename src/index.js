@@ -14,7 +14,7 @@ const client = new Client({
   checkUpdate: false,
 });
 
-// ─── session statistics ───────────────────────────────────
+// session statistics
 let stats = {
   forwarded: 0,
   edited: 0,
@@ -24,21 +24,16 @@ let stats = {
   startTime: null,
 };
 
-// ─── event: ready ─────────────────────────────────────────
 client.on('ready', () => {
   stats.startTime = Date.now();
 
-  console.log('');
-  console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║      DISCORD MESSAGE FORWARDER — ACTIVE          ║');
-  console.log('╠══════════════════════════════════════════════════╣');
-  console.log(`║  account:  ${client.user.tag.padEnd(37)}║`);
-  console.log(`║  server:   ${config.sourceGuildId.padEnd(37)}║`);
-  console.log(`║  webhooks: ${String(config.defaultWebhookUrls.length).padEnd(37)}║`);
-  console.log(`║  routes:   ${String(config.channelRoutes.size).padEnd(37)}║`);
-  console.log(`║  excluded: ${String(config.excludedChannelIds.size).padEnd(37)}║`);
-  console.log('╚══════════════════════════════════════════════════╝');
-  console.log('');
+  console.log('\n--- Discord Message Forwarder Started ---');
+  console.log(`Account:  ${client.user.tag}`);
+  console.log(`Server:   ${config.sourceGuildId}`);
+  console.log(`Webhooks: ${config.defaultWebhookUrls.length}`);
+  console.log(`Routes:   ${config.channelRoutes.size}`);
+  console.log(`Excluded: ${config.excludedChannelIds.size}`);
+  console.log('-----------------------------------------\n');
 
   if (config.excludedChannelIds.size > 0) {
     logger.info(`excluded channels: ${[...config.excludedChannelIds].join(', ')}`);
@@ -48,36 +43,35 @@ client.on('ready', () => {
   console.log('');
 });
 
-// ─── event: new message ───────────────────────────────────
 client.on('messageCreate', async (message) => {
   try {
-    // 1. ignore messages from other servers
+    // ignore messages from other servers
     if (!message.guild || message.guild.id !== config.sourceGuildId) {
       return;
     }
 
-    // 2. ignore own messages (if configured)
+    // ignore own messages
     if (config.ignoreSelf && message.author.id === client.user.id) {
       return;
     }
 
-    // 3. prevent infinite loops: ignore messages sent by our own webhooks
+    // prevent infinite loops from our own webhooks
     if (message.webhookId && config.webhookIds.has(message.webhookId)) {
       return;
     }
 
-    // 4. check if the channel is in the exclusion list
+    // check if the channel is in the exclusion list
     if (config.excludedChannelIds.has(message.channel.id)) {
       stats.excluded++;
       return;
     }
 
-    // 4. ignore system messages (join, boost, etc.)
+    // ignore system messages
     if (message.system) {
       return;
     }
 
-    // 5. verify there is content to forward
+    // verify there is content to forward
     const hasContent = message.content && message.content.length > 0;
     const hasEmbeds = message.embeds.length > 0;
     const hasAttachments = message.attachments.size > 0;
@@ -87,7 +81,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // 6. forward the message
+    // forward the message
     await forwardMessage(message);
     stats.forwarded++;
   } catch (err) {
@@ -96,8 +90,8 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// ─── event: message edited ────────────────────────────────
-// critical for surebet signals: odds can change after initial post
+// handle edited messages
+// critical for surebet signals as odds might change
 client.on('messageUpdate', async (oldMessage, newMessage) => {
   try {
     if (!newMessage.guild || newMessage.guild.id !== config.sourceGuildId) return;
@@ -113,8 +107,8 @@ client.on('messageUpdate', async (oldMessage, newMessage) => {
   }
 });
 
-// ─── event: message deleted ───────────────────────────────
-// critical for surebet signals: deleted = signal no longer valid
+// handle deleted messages
+// critical for surebet signals as deleted = signal no longer valid
 client.on('messageDelete', async (message) => {
   try {
     // deleted messages can be partial (uncached), so use optional chaining
@@ -130,7 +124,7 @@ client.on('messageDelete', async (message) => {
   }
 });
 
-// ─── event: errors and warnings ───────────────────────────
+// --- event wrappers ---
 client.on('error', (err) => {
   logger.error(`client error: ${err.message}`);
 });
@@ -139,17 +133,15 @@ client.on('warn', (msg) => {
   logger.warn(`client warning: ${msg}`);
 });
 
-// ─── event: disconnect ───────────────────────────────────
 client.on('disconnect', () => {
   logger.warn('disconnected from discord. automatic reconnection attempt...');
 });
 
-// ─── event: reconnecting ─────────────────────────────────
 client.on('reconnecting', () => {
   logger.info('reconnecting...');
 });
 
-// ─── graceful shutdown ───────────────────────────────────
+// graceful shutdown
 function shutdown(signal) {
   console.log('');
   logger.info(`received ${signal}. shutting down...`);
@@ -158,18 +150,14 @@ function shutdown(signal) {
     ? Math.round((Date.now() - stats.startTime) / 1000 / 60)
     : 0;
 
-  console.log('');
-  console.log('╔══════════════════════════════════════════════════╗');
-  console.log('║              SESSION STATISTICS                  ║');
-  console.log('╠══════════════════════════════════════════════════╣');
-  console.log(`║  uptime:     ${String(uptime + ' minutes').padEnd(35)}║`);
-  console.log(`║  forwarded:  ${String(stats.forwarded).padEnd(35)}║`);
-  console.log(`║  edited:     ${String(stats.edited).padEnd(35)}║`);
-  console.log(`║  deleted:    ${String(stats.deleted).padEnd(35)}║`);
-  console.log(`║  excluded:   ${String(stats.excluded).padEnd(35)}║`);
-  console.log(`║  errors:     ${String(stats.errors).padEnd(35)}║`);
-  console.log('╚══════════════════════════════════════════════════╝');
-  console.log('');
+  console.log('\n--- Session Statistics ---');
+  console.log(`Uptime:    ${uptime} minutes`);
+  console.log(`Forwarded: ${stats.forwarded}`);
+  console.log(`Edited:    ${stats.edited}`);
+  console.log(`Deleted:   ${stats.deleted}`);
+  console.log(`Excluded:  ${stats.excluded}`);
+  console.log(`Errors:    ${stats.errors}`);
+  console.log('--------------------------\n');
 
   client.destroy();
   process.exit(0);
@@ -178,7 +166,7 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-// ─── catch unhandled errors so PM2 can restart cleanly ───
+// catch unhandled errors so PM2 can restart cleanly
 process.on('unhandledRejection', (err) => {
   logger.error(`unhandled promise rejection: ${err?.message || err}`);
 });
@@ -188,7 +176,7 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// ─── startup ─────────────────────────────────────────────
+// startup
 logger.info('starting self-bot...');
 client
   .login(config.token)
