@@ -1,0 +1,21 @@
+{
+  "name": "discord-message-forwarder",
+  "version": "1.0.0",
+  "description": "discord self-bot that forwards messages from a private server to a destination channel via webhook",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "prod": "pm2 start ecosystem.config.cjs",
+    "prod:stop": "pm2 stop discord-forwarder",
+    "prod:logs": "pm2 logs discord-forwarder"
+  },
+  "dependencies": {
+    "discord.js-selfbot-v13": "^3.4.2",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
